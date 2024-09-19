@@ -1,3 +1,4 @@
 pillow
 av
 mediapipe
+opencv-python

@@ -1,4 +1,3 @@
-tempfile
 pillow
 av
 mediapipe

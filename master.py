@@ -295,7 +295,7 @@ def main():
     # Crea una barra lateral con un selector de páginas
     page = frontend.st.sidebar.selectbox(
         "Selecciona la página",
-        ("Detección del Centro de Masa", "Cálculo del Centro de Masa", "Tarea académica 1")
+        ("Detección del Centro de Masa", "Cálculo del Centro de Masa", "Manual de Uso")
     )
 
     # Ejecutar diferentes páginas
@@ -303,7 +303,7 @@ def main():
         frontend.run_page_1()
     elif page == "Cálculo del Centro de Masa":
         frontend.run_page_2()
-    elif page == "Tarea académica 1":
+    elif page == "Manual de Uso":
         frontend.run_page_n()
 
 if __name__ == "__main__":

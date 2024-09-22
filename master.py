@@ -244,7 +244,10 @@ class AppFrontend:
         [1]   https://www.sciencedirect.com/science/article/pii/0021929094900353
         \n
         [2]   https://deepblue.lib.umich.edu/bitstream/handle/2027.42/4540/bab9715.0001.001.pdf?sequence=5&isAllowed=y
+        \n
+        [3]   https://www.youtube.com/watch?v=OJh9bdrOLQw
         """)
+        
 
     def run_page_n(self):
         self.st.title("Tarea académica 1")

@@ -250,39 +250,39 @@ class AppFrontend:
         
 
     def run_page_n(self):
-    self.st.title("Manual de Uso")
-    self.st.write("""
-    Bienvenido al manual de uso de la aplicación de detección del centro de masa, diseñada para el curso de 
-    **Fundamento Mecánico de los Biomateriales** de la **Pontificia Universidad Católica del Perú**.
-    """)
+        self.st.title("Manual de Uso")
+        self.st.write("""
+        Bienvenido al manual de uso de la aplicación de detección del centro de masa, diseñada para el curso de 
+        **Fundamento Mecánico de los Biomateriales** de la **Pontificia Universidad Católica del Perú**.
+        """)
+        
+        self.st.write("""
+        ### ¿Cómo funciona la aplicación?
+        
+        1. **Subir un video**: En la página principal "Detección del Centro de Masa", puedes subir un video en formatos 
+        compatibles como MP4, MOV o AVI. Asegúrate de que el video muestre claramente el cuerpo de la persona cuyas 
+        coordenadas serán analizadas.
+        
+        2. **Ingresar el peso**: Después de subir el video, deberás ingresar el peso de la persona. Este valor se usa 
+        para calcular de manera precisa el centro de masa, basándonos en un modelo segmental del cuerpo humano.
     
-    self.st.write("""
-    ### ¿Cómo funciona la aplicación?
+        3. **Procesar video**: Al hacer clic en el botón "Procesar Video", la aplicación detecta el esqueleto de la 
+        persona en cada cuadro del video y calcula el centro de masa. La detección se realiza utilizando la 
+        biblioteca **Mediapipe**, que genera las coordenadas 3D de los puntos clave del cuerpo (cabeza, torso, brazos, 
+        piernas, etc.).
+        
+        4. **Resultado visual**: Una vez procesado, podrás ver el video con el esqueleto y el centro de masa dibujados 
+        en cada cuadro. El centro de masa se representa como un punto rojo en el video, acompañado de sus coordenadas.
     
-    1. **Subir un video**: En la página principal "Detección del Centro de Masa", puedes subir un video en formatos 
-    compatibles como MP4, MOV o AVI. Asegúrate de que el video muestre claramente el cuerpo de la persona cuyas 
-    coordenadas serán analizadas.
+        5. **Descargar el video procesado**: Finalmente, puedes descargar el video procesado directamente a tu dispositivo 
+        para futuras referencias o análisis.
     
-    2. **Ingresar el peso**: Después de subir el video, deberás ingresar el peso de la persona. Este valor se usa 
-    para calcular de manera precisa el centro de masa, basándonos en un modelo segmental del cuerpo humano.
-
-    3. **Procesar video**: Al hacer clic en el botón "Procesar Video", la aplicación detecta el esqueleto de la 
-    persona en cada cuadro del video y calcula el centro de masa. La detección se realiza utilizando la 
-    biblioteca **Mediapipe**, que genera las coordenadas 3D de los puntos clave del cuerpo (cabeza, torso, brazos, 
-    piernas, etc.).
-    
-    4. **Resultado visual**: Una vez procesado, podrás ver el video con el esqueleto y el centro de masa dibujados 
-    en cada cuadro. El centro de masa se representa como un punto rojo en el video, acompañado de sus coordenadas.
-
-    5. **Descargar el video procesado**: Finalmente, puedes descargar el video procesado directamente a tu dispositivo 
-    para futuras referencias o análisis.
-
-    ### ¿Para qué se utiliza?
-    
-    Esta aplicación ha sido creada con fines académicos y de investigación, permitiendo a los estudiantes y 
-    profesionales visualizar el comportamiento dinámico del centro de masa en diversas actividades físicas. 
-    Está diseñada como parte del curso de Fundamento Mecánico de los Biomateriales de la PUCP.
-    """)
+        ### ¿Para qué se utiliza?
+        
+        Esta aplicación ha sido creada con fines académicos y de investigación, permitiendo a los estudiantes y 
+        profesionales visualizar el comportamiento dinámico del centro de masa en diversas actividades físicas. 
+        Está diseñada como parte del curso de Fundamento Mecánico de los Biomateriales de la PUCP.
+        """)
 
 
 def main():

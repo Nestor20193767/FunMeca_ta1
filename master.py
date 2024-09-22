@@ -4,6 +4,8 @@ import tempfile
 import av
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+import cv2
+import os
 
 # Clase encargada de la detección del centro de masa
 class CenterOfMassDetector:
@@ -82,48 +84,78 @@ class CenterOfMassDetector:
 
     # Procesa el video y detecta el esqueleto junto con el centro de masa
     def process_video(self, uploaded_file, peso_persona):
-        # Crear un archivo temporal para almacenar el video
-        tfile = tempfile.NamedTemporaryFile(delete=False)
-        tfile.write(uploaded_file.read())
+        # Crear archivos temporales para el video de entrada y salida
+        tfile_in = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+        tfile_in.write(uploaded_file.read())
+        tfile_in.close()
 
-        # Abre el video usando av
-        video = av.open(tfile.name)
-        stframe = st.empty()
+        tfile_out = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+        tfile_out.close()
+
+        # Abre el video de entrada usando av
+        input_container = av.open(tfile_in.name)
+        # Prepara el contenedor de salida usando av
+        output_container = av.open(tfile_out.name, mode='w')
+
+        # Obtén el stream de video y su configuración
+        input_stream = input_container.streams.video[0]
+        codec_name = input_stream.codec_context.name
+
+        # Configura el stream de salida
+        output_stream = output_container.add_stream(codec_name, rate=input_stream.average_rate)
+        output_stream.width = input_stream.width
+        output_stream.height = input_stream.height
+        output_stream.pix_fmt = 'yuv420p'
 
         with self.mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
-            for frame in video.decode(video=0):
+            for frame in input_container.decode(video=0):
                 # Convertir el frame a un array de numpy
-                image = np.array(frame.to_image())
+                image = frame.to_image()
+                image_np = np.array(image)
 
                 # Procesa la imagen para detectar poses
-                results = pose.process(image)
+                results = pose.process(image_np)
 
                 # Dibujar el esqueleto y el centro de masa en la imagen
                 if results.pose_landmarks:
                     landmarks = results.pose_landmarks.landmark
 
                     # Dibujar el esqueleto en la imagen
-                    self.mp_drawing.draw_landmarks(image, results.pose_landmarks, self.mp_pose.POSE_CONNECTIONS)
+                    self.mp_drawing.draw_landmarks(image_np, results.pose_landmarks, self.mp_pose.POSE_CONNECTIONS)
 
                     # Calcular el centro de masa
                     cm_x, cm_y, cm_z = self.calculate_center_of_mass(landmarks, peso_persona)
 
                     # Dibujar el centro de masa en la imagen
-                    height, width, _ = image.shape
+                    height, width, _ = image_np.shape
                     cm_x_px = int(cm_x * width)
                     cm_y_px = int(cm_y * height)
 
-                    # Convertir la imagen a PIL para dibujar
-                    img_pil = Image.fromarray(image)
-                    draw = ImageDraw.Draw(img_pil)
-                    draw.ellipse((cm_x_px - 5, cm_y_px - 5, cm_x_px + 5, cm_y_px + 5), fill=(255, 0, 0))
+                    # Dibujar un círculo rojo en el centro de masa
+                    cv2.circle(image_np, (cm_x_px, cm_y_px), 5, (255, 0, 0), -1)
 
                     # Dibujar las coordenadas X, Y, Z junto al punto rojo
-                    text = f"X: {cm_x:.2f}, Y: {cm_y:.2f}, Z: {cm_z:.2f}"
-                    draw.text((cm_x_px + 10, cm_y_px - 10), text, fill=(255, 255, 255))
+                    cv2.putText(image_np, f"X: {cm_x:.2f}, Y: {cm_y:.2f}, Z: {cm_z:.2f}",
+                                (cm_x_px + 10, cm_y_px - 10), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.5, (255, 255, 255), 1, cv2.LINE_AA)
 
-                    # Mostrar la imagen con esqueleto, centro de masa y coordenadas
-                    stframe.image(img_pil, use_column_width=True)
+                # Convertir el frame procesado a AV frame
+                processed_frame = av.VideoFrame.from_ndarray(image_np, format='rgb24')
+                for packet in output_stream.encode(processed_frame):
+                    output_container.mux(packet)
+
+            # Finalizar el stream de salida
+            for packet in output_stream.encode():
+                output_container.mux(packet)
+
+            # Cerrar los contenedores
+            output_container.close()
+            input_container.close()
+
+        # Eliminar el archivo de entrada temporal
+        os.remove(tfile_in.name)
+
+        return tfile_out.name
 
 class AppFrontend:
     def __init__(self, detector):
@@ -136,9 +168,28 @@ class AppFrontend:
         if uploaded_file is not None:
             peso_persona = self.st.number_input("Ingresa el peso de la persona (kg):", min_value=0.0, step=0.1)
             if peso_persona > 0:
-                self.st.text("Procesando video...")
-                self.detector.process_video(uploaded_file, peso_persona)
-                self.st.text("Procesamiento completado.")
+                if self.st.button("Procesar Video"):
+                    with st.spinner("Procesando video..."):
+                        processed_video_path = self.detector.process_video(uploaded_file, peso_persona)
+                    self.st.success("Procesamiento completado.")
+
+                    # Leer el video procesado
+                    with open(processed_video_path, 'rb') as video_file:
+                        video_bytes = video_file.read()
+
+                    # Mostrar el video procesado
+                    self.st.video(video_bytes)
+
+                    # Agregar botón de descarga
+                    self.st.download_button(
+                        label="Descargar Video Procesado",
+                        data=video_bytes,
+                        file_name="video_procesado.mp4",
+                        mime="video/mp4"
+                    )
+
+                    # Eliminar el archivo de video procesado después de usarlo
+                    os.remove(processed_video_path)
 
     def run_page_2(self):
         self.st.title("Cálculo del Centro de Masa")
@@ -188,7 +239,7 @@ class AppFrontend:
 
         # Paper utilizado
         self.st.write("""
-        El paper que se uso para poder calcular las porciones segmentales del cuerpo humano es: 
+        El paper que se usó para calcular las porciones segmentales del cuerpo humano es: 
         \n
         [1]   https://www.sciencedirect.com/science/article/pii/0021929094900353
         \n
@@ -196,10 +247,10 @@ class AppFrontend:
         """)
 
     def run_page_n(self):
-        self.st.title("Tarea academica 1")
+        self.st.title("Tarea académica 1")
         self.st.write("""
-        Este programada fue creado para la Tarea academica 1 del curos de Fundamento mecanico de los biomateriales
-        dictado en la Pontifica Universidad Catolica del Perú.
+        Este programa fue creado para la Tarea académica 1 del curso de Fundamento Mecánico de los Biomateriales
+        dictado en la Pontificia Universidad Católica del Perú.
         """)
 
 def main():
@@ -212,7 +263,7 @@ def main():
     # Crea una barra lateral con un selector de páginas
     page = frontend.st.sidebar.selectbox(
         "Selecciona la página",
-        ("Detección del Centro de Masa", "Cálculo del Centro de Masa", "Tarea academica 1")
+        ("Detección del Centro de Masa", "Cálculo del Centro de Masa", "Tarea académica 1")
     )
 
     # Ejecutar diferentes páginas
@@ -220,7 +271,7 @@ def main():
         frontend.run_page_1()
     elif page == "Cálculo del Centro de Masa":
         frontend.run_page_2()
-    elif page == "Tarea academica 1":
+    elif page == "Tarea académica 1":
         frontend.run_page_n()
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 pillow
 av
-mediapipe~=0.8.6
-streamlit==0.86.0
+mediapipe==0.10.11
+streamlit
 numpy==1.20.2
 opencv_contrib_python==4.4.0.46
+opencv-python-headless

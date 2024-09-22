@@ -107,7 +107,7 @@ class CenterOfMassDetector:
         output_stream.height = input_stream.height
         output_stream.pix_fmt = 'yuv420p'
 
-        with self.mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+        with self.mp_pose.Pose(min_detection_confidence=0.75, min_tracking_confidence=0.75) as pose:
             for frame in input_container.decode(video=0):
                 # Convertir el frame a un array de numpy
                 image = frame.to_image()

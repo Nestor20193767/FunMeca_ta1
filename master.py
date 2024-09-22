@@ -3,7 +3,6 @@ import streamlit as st
 import tempfile
 import av
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
 import cv2
 import os
 
@@ -82,38 +81,18 @@ class CenterOfMassDetector:
 
         return cm_x, cm_y, cm_z
 
-    # Procesa el video y detecta el esqueleto junto con el centro de masa
-    def process_video(self, uploaded_file, peso_persona):
-        # Crear archivos temporales para el video de entrada y salida
-        tfile_in = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-        tfile_in.write(uploaded_file.read())
-        tfile_in.close()
-
-        tfile_out = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-        tfile_out.close()
-
-        # Abre el video de entrada usando av
-        input_container = av.open(tfile_in.name)
-        # Prepara el contenedor de salida usando av
-        output_container = av.open(tfile_out.name, mode='w')
-
-        # Obtén el stream de video y su configuración
-        input_stream = input_container.streams.video[0]
-        codec_name = input_stream.codec_context.name
-
-        # Configura el stream de salida
-        output_stream = output_container.add_stream(codec_name, rate=input_stream.average_rate)
-        output_stream.width = input_stream.width
-        output_stream.height = input_stream.height
-        output_stream.pix_fmt = 'yuv420p'
-
+    # Procesa el video en tiempo real desde la cámara
+    def process_camera(self, peso_persona):
+        cap = cv2.VideoCapture(0)  # Abrir la cámara
         with self.mp_pose.Pose(min_detection_confidence=0.75, min_tracking_confidence=0.75) as pose:
-            for frame in input_container.decode(video=0):
-                # Convertir el frame a un array de numpy
-                image = frame.to_image()
-                image_np = np.array(image)
+            while cap.isOpened():
+                success, image_np = cap.read()  # Leer frame de la cámara
+                if not success:
+                    print("No se pudo acceder a la cámara.")
+                    break
 
                 # Procesa la imagen para detectar poses
+                image_np = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
                 results = pose.process(image_np)
 
                 # Dibujar el esqueleto y el centro de masa en la imagen
@@ -139,23 +118,15 @@ class CenterOfMassDetector:
                                 (cm_x_px + 10, cm_y_px - 10), cv2.FONT_HERSHEY_SIMPLEX,
                                 0.5, (255, 255, 255), 1, cv2.LINE_AA)
 
-                # Convertir el frame procesado a AV frame
-                processed_frame = av.VideoFrame.from_ndarray(image_np, format='rgb24')
-                for packet in output_stream.encode(processed_frame):
-                    output_container.mux(packet)
+                # Mostrar el frame procesado
+                image_np = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+                cv2.imshow('Centro de Masa en Tiempo Real', image_np)
 
-            # Finalizar el stream de salida
-            for packet in output_stream.encode():
-                output_container.mux(packet)
+                if cv2.waitKey(1) & 0xFF == ord('q'):  # Presionar 'q' para salir
+                    break
 
-            # Cerrar los contenedores
-            output_container.close()
-            input_container.close()
-
-        # Eliminar el archivo de entrada temporal
-        os.remove(tfile_in.name)
-
-        return tfile_out.name
+        cap.release()
+        cv2.destroyAllWindows()
 
 class AppFrontend:
     def __init__(self, detector):
@@ -163,7 +134,7 @@ class AppFrontend:
         self.st = st
 
     def run_page_1(self):
-        self.st.title("Detección del Centro de Masa")
+        self.st.title("Detección del Centro de Masa - Video Subido")
         uploaded_file = self.st.file_uploader("Sube un video", type=['mp4', 'mov', 'avi'])
         if uploaded_file is not None:
             peso_persona = self.st.number_input("Ingresa el peso de la persona (kg):", min_value=0.0, step=0.1)
@@ -191,70 +162,12 @@ class AppFrontend:
                     # Eliminar el archivo de video procesado después de usarlo
                     os.remove(processed_video_path)
 
-    def run_page_2(self):
-        self.st.title("Cálculo del Centro de Masa")
-        self.st.header("Descripción del Cálculo del Centro de Masa")
-
-        # Modelo Fisiológico: Descripción
-        self.st.write("""
-        Para calcular el centro de masa de una persona, hemos utilizado el **modelo segmental del cuerpo humano**, 
-        basado en el trabajo de **Dempster (1955)**. Este modelo asigna una proporción de la masa total del cuerpo 
-        a distintos segmentos, como la cabeza, el torso, los brazos y las piernas. Estas proporciones son aproximadas 
-        y se basan en estudios biomecánicos.
-        """)
-
-        # Fórmula del Centro de Masa en LaTeX
-        self.st.subheader("Fórmula del Centro de Masa")
-        self.st.latex(r"""
-        CM = \frac{\sum_{i=1}^{n} m_i \cdot r_i}{\sum_{i=1}^{n} m_i}
-        """)
-        self.st.write("""
-        Donde:
-        - \( CM \) es la coordenada del centro de masa.
-        - \( m_i \) es la masa del segmento corporal \( i \).
-        - \( r_i \) es la posición (coordenada) del centro del segmento corporal \( i \).
-        - La suma se realiza sobre todos los segmentos del cuerpo.
-        """)
-
-        # Proporciones de Masa por Segmento
-        self.st.subheader("Proporciones de Masa por Segmento Corporal")
-        self.st.write("""
-        A continuación, mostramos las proporciones de masa de los diferentes segmentos del cuerpo, 
-        que se utilizan para calcular el centro de masa ponderado:
-        """)
-        self.st.write("""
-        - **Cabeza**: 8% de la masa total.
-        - **Torso**: 50% de la masa total.
-        - **Brazo superior**: 3% de la masa total (por cada brazo).
-        - **Antebrazo**: 2% de la masa total (por cada antebrazo).
-        - **Muslo**: 10% de la masa total (por cada muslo).
-        - **Pierna inferior**: 5% de la masa total (por cada pierna).
-        """)
-
-        # Ilustración del Cálculo
-        self.st.write("""
-        El cálculo se realiza considerando las coordenadas 3D de los puntos clave del esqueleto, como la nariz, caderas, hombros, rodillas, etc. 
-        Se calcula la posición media de los segmentos corporales y se ponderan estas posiciones con las masas correspondientes.
-        """)
-
-        # Paper utilizado
-        self.st.write("""
-        El paper que se usó para calcular las porciones segmentales del cuerpo humano es: 
-        \n
-        [1]   https://www.sciencedirect.com/science/article/pii/0021929094900353
-        \n
-        [2]   https://deepblue.lib.umich.edu/bitstream/handle/2027.42/4540/bab9715.0001.001.pdf?sequence=5&isAllowed=y
-        \n
-        [3]   https://www.youtube.com/watch?v=OJh9bdrOLQw
-        """)
-        
-
-    def run_page_n(self):
-        self.st.title("Tarea académica 1")
-        self.st.write("""
-        Este programa fue creado para la Tarea académica 1 del curso de Fundamento Mecánico de los Biomateriales
-        dictado en la Pontificia Universidad Católica del Perú.
-        """)
+    def run_page_real_time(self):
+        self.st.title("Detección del Centro de Masa en Tiempo Real")
+        peso_persona = self.st.number_input("Ingresa el peso de la persona (kg):", min_value=0.0, step=0.1)
+        if peso_persona > 0:
+            if self.st.button("Iniciar Detección en Tiempo Real"):
+                self.detector.process_camera(peso_persona)
 
 def main():
     # Instancia la clase detectora de centro de masa
@@ -266,16 +179,15 @@ def main():
     # Crea una barra lateral con un selector de páginas
     page = frontend.st.sidebar.selectbox(
         "Selecciona la página",
-        ("Detección del Centro de Masa", "Cálculo del Centro de Masa", "Tarea académica 1")
+        ("Detección del Centro de Masa - Video Subido", "Detección del Centro de Masa en Tiempo Real")
     )
 
     # Ejecutar diferentes páginas
-    if page == "Detección del Centro de Masa":
+    if page == "Detección del Centro de Masa - Video Subido":
         frontend.run_page_1()
-    elif page == "Cálculo del Centro de Masa":
-        frontend.run_page_2()
-    elif page == "Tarea académica 1":
-        frontend.run_page_n()
+    elif page == "Detección del Centro de Masa en Tiempo Real":
+        frontend.run_page_real_time()
 
 if __name__ == "__main__":
     main()
+

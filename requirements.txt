@@ -3,5 +3,5 @@ av
 mediapipe==0.10.11
 streamlit
 numpy==1.20.2
-opencv_contrib_python==4.4.0.46
-opencv-python-headless
+opencv-python-headless==4.5.5.64
+

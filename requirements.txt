@@ -1,7 +1,6 @@
 pillow
 av
 mediapipe
-streamlit
 numpy
 opencv-python-headless
 

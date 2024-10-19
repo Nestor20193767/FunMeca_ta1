@@ -3,5 +3,5 @@ av
 mediapipe
 numpy
 opencv-python-headless
-protobuf==3.20.x
+protobuf==3.20.3
 
